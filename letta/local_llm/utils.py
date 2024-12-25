@@ -228,6 +228,11 @@ def num_tokens_from_messages(messages: List[dict], model: str = "gpt-4") -> int:
         # )
     num_tokens = 0
     for message in messages:
+
+        # TODO: use a more clever way to check if the message contains an image
+        if "image_url" in message['content']:
+            continue
+
         num_tokens += tokens_per_message
         for key, value in message.items():
             try:

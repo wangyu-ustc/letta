@@ -60,13 +60,38 @@ def conversation_search(self: "Agent", query: str, page: Optional[int] = 0) -> O
         results_str = f"{results_pref} {json_dumps(results_formatted)}"
     return results_str
 
+def read_image(self: "Agent", image_url: str) -> Optional[str]:
+    """
+    Read the contents of an image.
 
-def archival_memory_insert(self: "Agent", content: str) -> Optional[str]:
+    Args:
+        image_url (str): URL of the image to read.
+
+    Returns:
+        Optional[str]: None is always returned as this function does not produce a response.
+    """
+    import base64
+    
+    with open(f"data/CLEVR_v1.0/images/val/{image_url}", "rb") as image_file:
+
+        base64_image = base64.b64encode(image_file.read()).decode("utf-8")
+        image_messages = [
+            {
+                'type': "image_url", "image_url": {
+                    "url": f"data:image/png;base64,{base64_image}"
+                }
+            }
+        ]
+
+    return image_messages
+
+def archival_memory_insert(self: "Agent", content: str, image_url: str = None) -> Optional[str]:
     """
     Add to archival memory. Make sure to phrase the memory contents such that it can be easily queried later.
 
     Args:
         content (str): Content to write to the memory. All unicode (including emojis) are supported.
+        image_url (str): URL of an image to associate with the memory. Defaults to None.
 
     Returns:
         Optional[str]: None is always returned as this function does not produce a response.
@@ -75,6 +100,7 @@ def archival_memory_insert(self: "Agent", content: str) -> Optional[str]:
         agent_state=self.agent_state,
         agent_id=self.agent_state.id,
         text=content,
+        image_url=image_url,
         actor=self.user,
     )
     return None

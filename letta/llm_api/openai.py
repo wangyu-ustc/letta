@@ -524,7 +524,39 @@ def openai_chat_completions_request(
             except ValueError as e:
                 warnings.warn(f"Failed to convert tool function to structured output, tool={tool}, error={e}")
 
+    new_messages = []
+    for item in data["messages"]:
+        try:
+            indicator = "content" in item and item['content'] is not None and 'message' in eval(item['content']) and "image_url" in eval(eval(item['content'])['message'])[0]
+            if indicator:
+                new_messages.append(
+                    {'role': item['role'],
+                    'tool_call_id': item['tool_call_id'],
+                    'content': "See the next user message for the image."}
+                )
+                new_messages.append(
+                    {
+                        'role': 'user',
+                        'content': [
+                            {
+                                'type': "text",
+                                'text': "tool_call_id: " + item['tool_call_id']
+                            },
+                            *eval(eval(item['content'])['message'])
+                        ]
+                    }
+                )
+
+            else:
+                new_messages.append(item)
+
+        except:
+            new_messages.append(item)
+            continue
+    data['messages'] = new_messages
+
     response_json = make_post_request(url, headers, data)
+
     return ChatCompletionResponse(**response_json)
 
 

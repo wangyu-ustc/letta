@@ -320,6 +320,7 @@ class Agent(BaseAgent):
         # and now we want to use it in the creation of the Message object
         # TODO figure out a cleaner way to do this
         response_message_id: Optional[str] = None,
+        update_database: bool = True,
     ) -> Tuple[List[Message], bool, bool]:
         """Handles parsing and function execution"""
 
@@ -459,11 +460,12 @@ class Agent(BaseAgent):
             #       this is because the function/tool role message is only created once the function/tool has executed/returned
             self.interface.function_message(f"Running {function_name}({function_args})", msg_obj=messages[-1])
             try:
+                
                 # handle tool execution (sandbox) and state updates
                 function_response = self.execute_tool_and_persist_state(function_name, function_args, target_letta_tool)
 
                 # handle trunction
-                if function_name in ["conversation_search", "conversation_search_date", "archival_memory_search"]:
+                if function_name in ["conversation_search", "conversation_search_date", "archival_memory_search", "read_image"]:
                     # with certain functions we rely on the paging mechanism to handle overflow
                     truncate = False
                 else:
@@ -581,6 +583,7 @@ class Agent(BaseAgent):
         # additional args
         chaining: bool = True,
         max_chaining_steps: Optional[int] = None,
+        update_database: bool = True,
         **kwargs,
     ) -> LettaUsageStatistics:
         """Run Agent.step in a loop, handling chaining via heartbeat requests and function failures"""
@@ -591,8 +594,10 @@ class Agent(BaseAgent):
         while True:
             kwargs["first_message"] = False
             kwargs["step_count"] = step_count
+
             step_response = self.inner_step(
                 messages=next_input_message,
+                update_database=update_database,
                 **kwargs,
             )
 
@@ -668,6 +673,7 @@ class Agent(BaseAgent):
         skip_verify: bool = False,
         stream: bool = False,  # TODO move to config?
         step_count: Optional[int] = None,
+        update_database: bool = True,
     ) -> AgentStepResponse:
         """Runs a single step in the agent loop (generates at most one LLM call)"""
 
@@ -711,6 +717,7 @@ class Agent(BaseAgent):
                 # TODO this is kind of hacky, find a better way to handle this
                 # the only time we set up message creation ahead of time is when streaming is on
                 response_message_id=response.id if stream else None,
+                update_database=update_database,
             )
 
             # Step 6: extend the message history
@@ -748,7 +755,7 @@ class Agent(BaseAgent):
                 )
 
             self.agent_state = self.agent_manager.append_to_in_context_messages(
-                all_new_messages, agent_id=self.agent_state.id, actor=self.user
+                all_new_messages, agent_id=self.agent_state.id, actor=self.user, update_database=update_database
             )
 
             return AgentStepResponse(
@@ -760,7 +767,7 @@ class Agent(BaseAgent):
             )
 
         except Exception as e:
-            printd(f"step() failed\nmessages = {messages}\nerror = {e}")
+            print(f"step() failed\nmessages = {messages}\nerror = {e}")
 
             # If we got a context alert, try trimming the messages length, then try again
             if is_context_overflow_error(e):
@@ -777,6 +784,7 @@ class Agent(BaseAgent):
                     first_message_retry_limit=first_message_retry_limit,
                     skip_verify=skip_verify,
                     stream=stream,
+                    update_database=update_database,
                 )
 
             else:

@@ -2447,6 +2447,7 @@ class LocalClient(AbstractClient):
         agent_name: Optional[str] = None,
         stream_steps: bool = False,
         stream_tokens: bool = False,
+        update_database: bool = True,
     ) -> LettaResponse:
         """
         Send a message to an agent
@@ -2476,6 +2477,7 @@ class LocalClient(AbstractClient):
             actor=self.user,
             agent_id=agent_id,
             messages=[MessageCreate(role=MessageRole(role), text=message, name=name)],
+            update_database=update_database,
         )
 
         ## TODO: need to make sure date/timestamp is propely passed

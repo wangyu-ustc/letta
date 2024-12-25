@@ -23,6 +23,7 @@ class ToolManager:
         "conversation_search",
         "archival_memory_insert",
         "archival_memory_search",
+        "read_image"
     ]
     BASE_MEMORY_TOOL_NAMES = ["core_memory_append", "core_memory_replace"]
 

@@ -389,8 +389,9 @@ class AgentManager:
         return self.set_in_context_messages(agent_id=agent_id, message_ids=message_ids, actor=actor)
 
     @enforce_types
-    def append_to_in_context_messages(self, messages: List[PydanticMessage], agent_id: str, actor: PydanticUser) -> PydanticAgentState:
-        messages = self.message_manager.create_many_messages(messages, actor=actor)
+    def append_to_in_context_messages(self, messages: List[PydanticMessage], agent_id: str, actor: PydanticUser, update_database: bool=True) -> PydanticAgentState:
+        if update_database:
+            messages = self.message_manager.create_many_messages(messages, actor=actor)
         message_ids = self.get_agent_by_id(agent_id=agent_id, actor=actor).message_ids or []
         message_ids += [m.id for m in messages]
         return self.set_in_context_messages(agent_id=agent_id, message_ids=message_ids, actor=actor)

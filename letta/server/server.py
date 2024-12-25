@@ -404,6 +404,7 @@ class SyncServer(Server):
         agent_id: str,
         input_messages: Union[Message, List[Message]],
         interface: Union[AgentInterface, None] = None,  # needed to getting responses
+        update_database: bool = True,
         # timestamp: Optional[datetime],
     ) -> LettaUsageStatistics:
         """Send the input message through the agent"""
@@ -431,6 +432,7 @@ class SyncServer(Server):
                 max_chaining_steps=self.max_chaining_steps,
                 stream=token_streaming,
                 skip_verify=True,
+                update_database=update_database,
             )
 
         except Exception as e:
@@ -687,6 +689,7 @@ class SyncServer(Server):
         wrap_user_message: bool = True,
         wrap_system_message: bool = True,
         interface: Union[AgentInterface, None] = None,  # needed to getting responses
+        update_database: bool = True,
     ) -> LettaUsageStatistics:
         """Send a list of messages to the agent
 
@@ -733,7 +736,7 @@ class SyncServer(Server):
             raise ValueError(f"All messages must be of type Message or MessageCreate, got {[type(message) for message in messages]}")
 
         # Run the agent state forward
-        return self._step(actor=actor, agent_id=agent_id, input_messages=message_objects, interface=interface)
+        return self._step(actor=actor, agent_id=agent_id, input_messages=message_objects, interface=interface, update_database=update_database)
 
     # @LockingServer.agent_lock_decorator
     def run_command(self, user_id: str, agent_id: str, command: str) -> LettaUsageStatistics:
