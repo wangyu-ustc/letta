@@ -106,6 +106,7 @@ def create(
     stream_interface: Optional[Union[AgentRefreshStreamingInterface, AgentChunkStreamingInterface]] = None,
     max_tokens: Optional[int] = None,
     model_settings: Optional[dict] = None,  # TODO: eventually pass from server
+    trimming: bool = False,
 ) -> ChatCompletionResponse:
     """Return response to chat completion with backoff"""
     from letta.utils import printd
@@ -166,6 +167,7 @@ def create(
                     url=llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
                     api_key=model_settings.openai_api_key,
                     chat_completion_request=data,
+                    trimming=trimming
                 )
             finally:
                 if isinstance(stream_interface, AgentChunkStreamingInterface):

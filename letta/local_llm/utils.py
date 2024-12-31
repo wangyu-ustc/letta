@@ -122,6 +122,11 @@ def num_tokens_from_functions(functions: List[dict], model: str = "gpt-4"):
                             for o in v["enum"]:
                                 function_tokens += 3
                                 function_tokens += len(encoding.encode(o))
+                        elif field == 'items':
+                            # TODO: need to check if this is correct
+                            function_tokens += 2
+                            # TODO: currently set the maximum number of items as 20
+                            function_tokens += 20 * len(encoding.encode(v["items"]['type']))
                         else:
                             warnings.warn(f"num_tokens_from_functions: Unsupported field {field} in function {function}")
                 function_tokens += 11

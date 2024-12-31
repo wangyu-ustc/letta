@@ -71,6 +71,7 @@ def summarize_messages(
         user_id=agent_state.created_by_id,
         messages=message_sequence,
         stream=False,
+        trimming=True
     )
 
     printd(f"summarize_messages gpt reply: {response.choices[0]}")

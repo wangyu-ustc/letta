@@ -286,11 +286,6 @@ def unpack_inner_thoughts_from_kwargs(choice: Choice, inner_thoughts_key: str) -
 
     return rewritten_choice
 
-    # without the following line, sometimes the above process would remove existing results
-    else:
-        return choice
-
-
 def is_context_overflow_error(exception: Union[requests.exceptions.RequestException, Exception]) -> bool:
     """Checks if an exception is due to context overflow (based on common OpenAI response messages)"""
     from letta.utils import printd

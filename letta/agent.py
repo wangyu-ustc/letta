@@ -1,4 +1,6 @@
+import re
 import inspect
+import base64
 import json
 import time
 import traceback
@@ -238,6 +240,7 @@ class Agent(BaseAgent):
     def _get_ai_reply(
         self,
         message_sequence: List[Message],
+        # image_urls: Optional[List[str]] = None,
         function_call: Optional[str] = None,
         first_message: bool = False,
         stream: bool = False,  # TODO move to config?
@@ -315,6 +318,7 @@ class Agent(BaseAgent):
     def _handle_ai_response(
         self,
         response_message: ChatCompletionMessage,  # TODO should we eventually move the Message creation outside of this function?
+        image_urls: Optional[List[str]] = None,
         override_tool_call_id: bool = False,
         # If we are streaming, we needed to create a Message ID ahead of time,
         # and now we want to use it in the creation of the Message object
@@ -385,6 +389,11 @@ class Agent(BaseAgent):
             # Get the name of the function
             function_name = function_call.name
             printd(f"Request to call function {function_name} with tool_call_id: {tool_call_id}")
+
+            if function_name == 'raise_error':
+                raw_function_args = function_call.arguments
+                function_args = parse_json(raw_function_args)
+                raise Exception(f"Error raised by function {function_args}")
 
             # Failure case 1: function name is wrong (not in agent_state.tools)
             target_letta_tool = None
@@ -460,7 +469,16 @@ class Agent(BaseAgent):
             #       this is because the function/tool role message is only created once the function/tool has executed/returned
             self.interface.function_message(f"Running {function_name}({function_args})", msg_obj=messages[-1])
             try:
-                
+
+                if function_name == 'archival_memory_insert' and "image_indices" in function_args and function_args['image_indices'] != '':
+                    # need to replace image indices with image urls
+                    all_image_urls = []
+                    for index in function_args['image_indices'].split(","):
+                        # use regex to extract the number from the index
+                        index = int(re.findall(r'\d+', index)[0])
+                        all_image_urls.append(image_urls[0][index - 1])
+                    function_args['image_indices'] = "\n".join(all_image_urls)
+
                 # handle tool execution (sandbox) and state updates
                 function_response = self.execute_tool_and_persist_state(function_name, function_args, target_letta_tool)
 
@@ -481,7 +499,9 @@ class Agent(BaseAgent):
                 function_args.pop("self", None)
                 function_response = package_function_response(True, function_response_string)
                 function_failed = False
+            
             except Exception as e:
+
                 function_args.pop("self", None)
                 # error_msg = f"Error calling function {function_name} with args {function_args}: {str(e)}"
                 # Less detailed - don't provide full args, idea is that it should be in recent context so no need (just adds noise)
@@ -580,6 +600,7 @@ class Agent(BaseAgent):
     def step(
         self,
         messages: Union[Message, List[Message]],
+        image_urls: Optional[List[str]] = None,
         # additional args
         chaining: bool = True,
         max_chaining_steps: Optional[int] = None,
@@ -591,6 +612,13 @@ class Agent(BaseAgent):
         counter = 0
         total_usage = UsageStatistics()
         step_count = 0
+
+        # put image_urls into messages:
+        if image_urls is not None:
+            cur_message = json.loads(messages[0].text)
+            cur_message['images'] = image_urls[0]
+            messages[0].text = json.dumps(cur_message)
+
         while True:
             kwargs["first_message"] = False
             kwargs["step_count"] = step_count
@@ -598,6 +626,7 @@ class Agent(BaseAgent):
             step_response = self.inner_step(
                 messages=next_input_message,
                 update_database=update_database,
+                image_urls=image_urls, # TODO: now we assume the whole rounds of messages share the same image
                 **kwargs,
             )
 
@@ -609,6 +638,7 @@ class Agent(BaseAgent):
             step_count += 1
             total_usage += usage
             counter += 1
+
             self.interface.step_complete()
 
             # logger.debug("Saving agent state")
@@ -668,6 +698,7 @@ class Agent(BaseAgent):
     def inner_step(
         self,
         messages: Union[Message, List[Message]],
+        image_urls: Optional[List[List[str]]] = None,
         first_message: bool = False,
         first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
         skip_verify: bool = False,
@@ -714,6 +745,7 @@ class Agent(BaseAgent):
             response_message.model_copy()  # TODO why are we copying here?
             all_response_messages, heartbeat_request, function_failed = self._handle_ai_response(
                 response_message,
+                image_urls=image_urls,
                 # TODO this is kind of hacky, find a better way to handle this
                 # the only time we set up message creation ahead of time is when streaming is on
                 response_message_id=response.id if stream else None,
@@ -767,6 +799,9 @@ class Agent(BaseAgent):
             )
 
         except Exception as e:
+
+            # TODO: Here when an error occurred in the function, we need to redo the function call to adjust the parameters.
+
             print(f"step() failed\nmessages = {messages}\nerror = {e}")
 
             # If we got a context alert, try trimming the messages length, then try again
@@ -778,6 +813,20 @@ class Agent(BaseAgent):
                 self.summarize_messages_inplace()
 
                 # Try step again
+                return self.inner_step(
+                    messages=messages,
+                    first_message=first_message,
+                    first_message_retry_limit=first_message_retry_limit,
+                    skip_verify=skip_verify,
+                    stream=stream,
+                    update_database=update_database,
+                )
+
+            elif isinstance(e, IndexError):
+
+                print(f"step() failed with an unrecognized exception: '{str(e)}', retrying...")
+
+                # it should be the error in the archival_memory_insert function
                 return self.inner_step(
                     messages=messages,
                     first_message=first_message,
