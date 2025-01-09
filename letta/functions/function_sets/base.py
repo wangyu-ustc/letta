@@ -1,7 +1,19 @@
-from typing import Optional
+from typing import List, Optional
 
 from letta.agent import Agent
 
+def raise_error(self: "Agent", error_type: str) -> Optional[str]:
+    """
+    Sends an error message to the human user.
+
+    Args:
+        error_type (str): Type of error to raise, it needs to be from the following list:
+        - "missing_images": When the user provided images in the text description but did not include the images in the content. 
+    
+    Returns:
+        Optional[str]: None is always returned as this function does not produce a response.
+    """
+    return None
 
 def send_message(self: "Agent", message: str) -> Optional[str]:
     """
@@ -60,23 +72,69 @@ def conversation_search(self: "Agent", query: str, page: Optional[int] = 0) -> O
         results_str = f"{results_pref} {json_dumps(results_formatted)}"
     return results_str
 
-
-def archival_memory_insert(self: "Agent", content: str) -> Optional[str]:
+def read_image(self: "Agent", image_urls: List[str]) -> Optional[str]:
     """
-    Add to archival memory. Make sure to phrase the memory contents such that it can be easily queried later.
+    Read the contents of an image.
 
     Args:
-        content (str): Content to write to the memory. All unicode (including emojis) are supported.
+        image_urls (array[str]): List of the URLs of the images to read.
 
     Returns:
         Optional[str]: None is always returned as this function does not produce a response.
     """
-    self.passage_manager.insert_passage(
-        agent_state=self.agent_state,
-        agent_id=self.agent_state.id,
-        text=content,
-        actor=self.user,
-    )
+    import base64
+    
+    image_dir = self.image_dir if hasattr(self, "image_dir") and self.image_dir is not None else "."
+
+    if isinstance(image_urls, str) and "," in image_urls:
+        image_urls = image_urls.split(",")
+    elif isinstance(image_urls, str):
+        image_urls = [image_urls]
+
+    image_messages = []
+
+    for image_url in image_urls:
+
+        with open(f"{image_dir}/{image_url}", "rb") as image_file:
+
+            base64_image = base64.b64encode(image_file.read()).decode("utf-8")
+            image_messages.append({
+                'type': "image_url", "image_url": {
+                    "url": f"data:image/png;base64,{base64_image}"
+                }
+            })
+
+    return image_messages
+
+def archival_memory_insert(self: "Agent", content: str, image_indices: str = None, descriptions: str=None) -> Optional[str]:
+    """
+    Add to archival memory. Make sure to phrase the memory contents such that it can be easily queried later.
+
+    Args:
+        content (str): The content and rough idea in this archival memory. Try to be distinguishable as this is used for future retrieval. All unicode (including emojis) are supported.
+        image_indices (str): Images that are associated with this piece of memory, e.g., '1,2,3,...,n'. Defaults to None.
+        descriptions (str): Descriptions of of all the images in one string, e.g., "'1:description_1, 2:description_2, 3:description_3, ..., n:description_n]". Try to be as specific as possible, do not include general information. Defaults to None.
+
+    Returns:
+        Optional[str]: None is always returned as this function does not produce a response.
+    """
+
+    if image_indices is not None and descriptions is not None:
+        self.passage_manager.insert_passage(
+            agent_state=self.agent_state,
+            agent_id=self.agent_state.id,
+            text=content + descriptions,
+            image_url=image_indices,
+            actor=self.user,
+        )
+
+    else:
+        self.passage_manager.insert_passage(
+            agent_state=self.agent_state,
+            agent_id=self.agent_state.id,
+            text=content,
+            actor=self.user,
+        )
     return None
 
 
@@ -119,7 +177,7 @@ def archival_memory_search(self: "Agent", query: str, page: Optional[int] = 0, s
         paged_results = all_results[start:end]
 
         # Format results to match previous implementation
-        formatted_results = [{"timestamp": str(result.created_at), "content": result.text} for result in paged_results]
+        formatted_results = [{"timestamp": str(result.created_at), "content": result.text, "image_url": result.image_url} for result in paged_results]
 
         return formatted_results, len(formatted_results)
 

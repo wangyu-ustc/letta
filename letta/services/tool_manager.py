@@ -23,6 +23,8 @@ class ToolManager:
         "conversation_search",
         "archival_memory_insert",
         "archival_memory_search",
+        "read_image",
+        "raise_error"
     ]
     BASE_MEMORY_TOOL_NAMES = ["core_memory_append", "core_memory_replace"]
 
@@ -148,6 +150,7 @@ class ToolManager:
             # Load the function set
             functions_to_schema = load_function_set(module)
         except ValueError as e:
+            import ipdb; ipdb.set_trace()
             err = f"Error loading function set '{module_name}': {e}"
             warnings.warn(err)
 

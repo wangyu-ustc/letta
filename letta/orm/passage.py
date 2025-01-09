@@ -26,6 +26,7 @@ class BasePassage(SqlalchemyBase, OrganizationMixin):
 
     id: Mapped[str] = mapped_column(primary_key=True, doc="Unique passage identifier")
     text: Mapped[str] = mapped_column(doc="Passage text content")
+    image_url: Mapped[str] = mapped_column(doc="URL to image associated with passage")
     embedding_config: Mapped[dict] = mapped_column(EmbeddingConfigColumn, doc="Embedding configuration")
     metadata_: Mapped[dict] = mapped_column(JSON, doc="Additional metadata")
 

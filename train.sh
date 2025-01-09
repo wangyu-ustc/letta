@@ -1,0 +1,1 @@
+python mm_main.py --dataset slidevqa --mode letta-mm --num_exp 50 --load_db_from sqlitefiles/slidevqa_50/sqlite.db

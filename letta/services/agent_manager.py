@@ -620,6 +620,7 @@ class AgentManager:
                     select(
                         AgentPassage.id,
                         AgentPassage.text,
+                        AgentPassage.image_url,
                         AgentPassage.embedding_config,
                         AgentPassage.metadata_,
                         AgentPassage.embedding,

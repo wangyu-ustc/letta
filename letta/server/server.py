@@ -403,6 +403,7 @@ class SyncServer(Server):
         actor: User,
         agent_id: str,
         input_messages: Union[Message, List[Message]],
+        input_image_urls: Optional[List[str]] = None,
         interface: Union[AgentInterface, None] = None,  # needed to getting responses
         # timestamp: Optional[datetime],
     ) -> LettaUsageStatistics:
@@ -427,6 +428,7 @@ class SyncServer(Server):
             logger.debug(f"Starting agent step")
             usage_stats = letta_agent.step(
                 messages=input_messages,
+                image_urls=input_image_urls,
                 chaining=self.chaining,
                 max_chaining_steps=self.max_chaining_steps,
                 stream=token_streaming,
@@ -683,6 +685,7 @@ class SyncServer(Server):
         actor: User,
         agent_id: str,
         messages: Union[List[MessageCreate], List[Message]],
+        image_urls: Optional[List[str]] = None,
         # whether or not to wrap user and system message as MemGPT-style stringified JSON
         wrap_user_message: bool = True,
         wrap_system_message: bool = True,
@@ -733,7 +736,7 @@ class SyncServer(Server):
             raise ValueError(f"All messages must be of type Message or MessageCreate, got {[type(message) for message in messages]}")
 
         # Run the agent state forward
-        return self._step(actor=actor, agent_id=agent_id, input_messages=message_objects, interface=interface)
+        return self._step(actor=actor, agent_id=agent_id, input_messages=message_objects, input_image_urls=image_urls, interface=interface)
 
     # @LockingServer.agent_lock_decorator
     def run_command(self, user_id: str, agent_id: str, command: str) -> LettaUsageStatistics:

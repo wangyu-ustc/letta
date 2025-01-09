@@ -1,3 +1,4 @@
+import re
 import json
 import warnings
 from typing import Generator, List, Optional, Union
@@ -488,6 +489,8 @@ def openai_chat_completions_request(
     url: str,
     api_key: str,
     chat_completion_request: ChatCompletionRequest,
+    image_urls: Optional[List[List[str]]] = None,
+    trimming: bool = False,
 ) -> ChatCompletionResponse:
     """Send a ChatCompletion request to an OpenAI-compatible server
 
@@ -524,9 +527,90 @@ def openai_chat_completions_request(
             except ValueError as e:
                 warnings.warn(f"Failed to convert tool function to structured output, tool={tool}, error={e}")
 
-    response_json = make_post_request(url, headers, data)
-    return ChatCompletionResponse(**response_json)
+    if not trimming:
+        new_messages = []
+        for message_idx, item in enumerate(data["messages"]):
 
+            if message_idx == len(data['messages']) - 1 and item['role'] != 'system' and 'content' in item and item['content'] is not None and "images" in json.loads(item['content']):
+
+                if json.loads(item['content'])['images'] is not None:
+
+                    content = json.loads(item['content'])
+                    image_urls = content['images']
+
+                    import base64
+                    base64_images = []
+                    for image_path in image_urls:
+                        with open(image_path, "rb") as image_file:
+                            base64_images.append(base64.b64encode(image_file.read()).decode("utf-8"))
+
+                    image_message = [
+                        {'type': 'image_url', 'image_url':  {
+                            'url': f"data:image/png;base64,{x}"
+                        }}
+                        for x in base64_images
+                    ]
+
+                    del content['images']
+                    item['content'] = [
+                        {'type': 'text', 'text': json.dumps(content)},
+                        *image_message
+                    ]
+                
+                else:
+                    content = json.loads(item['content'])
+                    del content['images']
+                    item['content'] = [
+                        {'type': 'text', 'text': json.dumps(content)}
+                    ]
+
+            try:
+                
+                indicator = "content" in item and item['content'] is not None and 'message' in eval(item['content']) and "image_url" in eval(eval(item['content'])['message'])[0]
+
+                if indicator:
+                    new_messages.append(
+                        {'role': item['role'],
+                        'tool_call_id': item['tool_call_id'],
+                        'content': "See the next user message for the image."}
+                    )
+                    new_messages.append(
+                        {
+                            'role': 'user',
+                            'content': [
+                                {
+                                    'type': "text",
+                                    'text': "tool_call_id: " + item['tool_call_id']
+                                },
+                                *eval(eval(item['content'])['message'])
+                            ]
+                        }
+                    )
+
+                else:
+                    new_messages.append(item)
+
+            except:
+                new_messages.append(item)
+                continue
+            
+        data['messages'] = new_messages
+
+    response_json = make_post_request(url, headers, data)
+
+    # manual interfere: change 'request_heartbeat' to be true if the agent is calling 'archival_memory_search'
+    try:
+        function_name = response_json['choices'][0]['message']['tool_calls'][0]['function']['name']
+        if function_name == 'archival_memory_search':
+            arguments = response_json['choices'][0]['message']['tool_calls'][0]['function']['arguments']
+            arguments = json.loads(arguments)
+            arguments['request_heartbeat'] = True
+            arguments = json.dumps(arguments)
+            response_json['choices'][0]['message']['tool_calls'][0]['function']['arguments'] = arguments
+    except:
+        pass
+
+    return ChatCompletionResponse(**response_json)
 
 def openai_embeddings_request(url: str, api_key: str, data: dict) -> EmbeddingResponse:
     """https://platform.openai.com/docs/api-reference/embeddings/create"""

@@ -122,6 +122,11 @@ def num_tokens_from_functions(functions: List[dict], model: str = "gpt-4"):
                             for o in v["enum"]:
                                 function_tokens += 3
                                 function_tokens += len(encoding.encode(o))
+                        elif field == 'items':
+                            # TODO: need to check if this is correct
+                            function_tokens += 2
+                            # TODO: currently set the maximum number of items as 20
+                            function_tokens += 20 * len(encoding.encode(v["items"]['type']))
                         else:
                             warnings.warn(f"num_tokens_from_functions: Unsupported field {field} in function {function}")
                 function_tokens += 11
@@ -228,6 +233,11 @@ def num_tokens_from_messages(messages: List[dict], model: str = "gpt-4") -> int:
         # )
     num_tokens = 0
     for message in messages:
+
+        # TODO: use a more clever way to check if the message contains an image
+        if "image_url" in message['content']:
+            continue
+
         num_tokens += tokens_per_message
         for key, value in message.items():
             try:

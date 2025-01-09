@@ -32,6 +32,7 @@ class Passage(PassageBase):
 
     Parameters:
         text (str): The text of the passage.
+        image_url (str): the path of the image.
         embedding (List[float]): The embedding of the passage.
         embedding_config (EmbeddingConfig): The embedding configuration used by the passage.
         created_at (datetime): The creation date of the passage.
@@ -45,6 +46,7 @@ class Passage(PassageBase):
 
     # passage text
     text: str = Field(..., description="The text of the passage.")
+    image_url: Optional[str] = Field(None, description="The path of the image.")
 
     # embeddings
     embedding: Optional[List[float]] = Field(..., description="The embedding of the passage.")

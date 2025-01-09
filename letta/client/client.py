@@ -940,6 +940,7 @@ class RESTClient(AbstractClient):
         stream: Optional[bool] = False,
         stream_steps: bool = False,
         stream_tokens: bool = False,
+        image_urls: Optional[List[str]] = None,
     ) -> Union[LettaResponse, Generator[LettaStreamingResponse, None, None]]:
         """
         Send a message to an agent
@@ -951,6 +952,7 @@ class RESTClient(AbstractClient):
             name(str): Name of the sender
             stream (bool): Stream the response (default: `False`)
             stream_tokens (bool): Stream tokens (default: `False`)
+            image_urls (List[str]): List of image URLs
 
         Returns:
             response (LettaResponse): Response from the agent
@@ -2096,6 +2098,7 @@ class LocalClient(AbstractClient):
         description: Optional[str] = None,
         initial_message_sequence: Optional[List[Message]] = None,
         tags: Optional[List[str]] = None,
+        image_dir: Optional[str] = None,
     ) -> AgentState:
         """Create an agent
 
@@ -2150,6 +2153,7 @@ class LocalClient(AbstractClient):
             "embedding_config": embedding_config if embedding_config else self._default_embedding_config,
             "initial_message_sequence": initial_message_sequence,
             "tags": tags,
+            "image_dir": image_dir,
         }
 
         # Only add name if it's not None
@@ -2421,6 +2425,7 @@ class LocalClient(AbstractClient):
         self,
         agent_id: str,
         messages: List[Union[Message | MessageCreate]],
+        image_urls: Optional[List[str]] = None,
     ):
         """
         Send pre-packed messages to an agent.
@@ -2428,12 +2433,13 @@ class LocalClient(AbstractClient):
         Args:
             agent_id (str): ID of the agent
             messages (List[Union[Message | MessageCreate]]): List of messages to send
+            image_urls (List[str]): List of image URLs
 
         Returns:
             response (LettaResponse): Response from the agent
         """
         self.interface.clear()
-        usage = self.server.send_messages(actor=self.user, agent_id=agent_id, messages=messages)
+        usage = self.server.send_messages(actor=self.user, agent_id=agent_id, messages=messages, image_urls=image_urls)
 
         # format messages
         return LettaResponse(messages=messages, usage=usage)
@@ -2447,6 +2453,7 @@ class LocalClient(AbstractClient):
         agent_name: Optional[str] = None,
         stream_steps: bool = False,
         stream_tokens: bool = False,
+        image_urls: Optional[List[str]] = None,
     ) -> LettaResponse:
         """
         Send a message to an agent
@@ -2476,6 +2483,7 @@ class LocalClient(AbstractClient):
             actor=self.user,
             agent_id=agent_id,
             messages=[MessageCreate(role=MessageRole(role), text=message, name=name)],
+            image_urls=[image_urls],
         )
 
         ## TODO: need to make sure date/timestamp is propely passed

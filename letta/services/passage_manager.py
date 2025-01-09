@@ -42,6 +42,7 @@ class PassageManager:
         common_fields = {
             "id": data.get("id"),
             "text": data["text"],
+            "image_url": data['image_url'],
             "embedding": data["embedding"],
             "embedding_config": data["embedding_config"],
             "organization_id": data["organization_id"],
@@ -82,6 +83,7 @@ class PassageManager:
         agent_id: str,
         text: str,
         actor: PydanticUser,
+        image_url: Optional[str] = None,
     ) -> List[PydanticPassage]:
         """Insert passage(s) into archival memory"""
 
@@ -107,6 +109,7 @@ class PassageManager:
                         organization_id=actor.organization_id,
                         agent_id=agent_id,
                         text=text,
+                        image_url=image_url,
                         embedding=embedding,
                         embedding_config=agent_state.embedding_config,
                     ),
